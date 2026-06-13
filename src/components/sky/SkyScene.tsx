@@ -8,6 +8,7 @@ import { Planets } from "./Planets";
 import { LookControls } from "./LookControls";
 import { HorizonRing } from "./HorizonRing";
 import { CompassLabels } from "./CompassLabels";
+import { ShootingStars } from "./ShootingStars";
 
 interface SkySceneProps {
   stars: StarRecord[];
@@ -55,6 +56,7 @@ export function SkyScene({
         longitude={longitude}
         onHover={(planet) => onHover(planet ? { kind: "planet", planet } : null)}
       />
+      <ShootingStars />
     </Canvas>
   );
 }
