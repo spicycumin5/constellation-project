@@ -2,11 +2,16 @@
 
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import type { PerspectiveCamera } from "three";
 
 const LOOK_SPEED = 0.0035;
 const MAX_PITCH = Math.PI / 2 - 0.01;
 // Within ~20 degrees of straight down counts as "looking down".
 const LOOK_DOWN_THRESHOLD = -(Math.PI / 2 - 0.35);
+
+const ZOOM_SPEED = 0.05;
+const MIN_FOV = 20;
+const MAX_FOV = 100;
 
 interface LookControlsProps {
   onLookDownChange?: (lookingDown: boolean) => void;
@@ -38,20 +43,32 @@ export function LookControls({ onLookDownChange }: LookControlsProps) {
       const dx = event.clientX - last.current.x;
       const dy = event.clientY - last.current.y;
       last.current = { x: event.clientX, y: event.clientY };
-      yaw.current -= dx * LOOK_SPEED;
+      yaw.current += dx * LOOK_SPEED;
       pitch.current = Math.min(MAX_PITCH, Math.max(-MAX_PITCH, pitch.current + dy * LOOK_SPEED));
+    }
+
+    function onWheel(event: WheelEvent) {
+      event.preventDefault();
+      const perspectiveCamera = camera as PerspectiveCamera;
+      perspectiveCamera.fov = Math.min(
+        MAX_FOV,
+        Math.max(MIN_FOV, perspectiveCamera.fov + event.deltaY * ZOOM_SPEED)
+      );
+      perspectiveCamera.updateProjectionMatrix();
     }
 
     dom.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("pointermove", onPointerMove);
+    dom.addEventListener("wheel", onWheel, { passive: false });
 
     return () => {
       dom.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointermove", onPointerMove);
+      dom.removeEventListener("wheel", onWheel);
     };
-  }, [gl]);
+  }, [gl, camera]);
 
   useFrame(() => {
     camera.rotation.order = "YXZ";

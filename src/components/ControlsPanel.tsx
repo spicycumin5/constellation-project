@@ -105,7 +105,7 @@ export function ControlsPanel({
       </button>
 
       <p className="text-[11px] leading-relaxed text-zinc-500">
-        Drag the sky to look around. Hover a star or planet for details.
+        Drag the sky to look around, scroll to zoom. Hover a star or planet for details.
       </p>
     </motion.div>
   );
