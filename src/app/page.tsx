@@ -41,6 +41,7 @@ export default function Home() {
             latitude={latitude}
             longitude={longitude}
             showConstellations={showConstellations}
+            hover={hover}
             onHover={setHover}
             onLookDownChange={setLookingDown}
           />

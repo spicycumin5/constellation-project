@@ -9,6 +9,7 @@ import { LookControls } from "./LookControls";
 import { HorizonRing } from "./HorizonRing";
 import { CompassLabels } from "./CompassLabels";
 import { ShootingStars } from "./ShootingStars";
+import { HoverHighlight } from "./HoverHighlight";
 
 interface SkySceneProps {
   stars: StarRecord[];
@@ -17,6 +18,7 @@ interface SkySceneProps {
   latitude: number;
   longitude: number;
   showConstellations: boolean;
+  hover: HoverTarget | null;
   onHover: (target: HoverTarget | null) => void;
   onLookDownChange?: (lookingDown: boolean) => void;
 }
@@ -28,6 +30,7 @@ export function SkyScene({
   latitude,
   longitude,
   showConstellations,
+  hover,
   onHover,
   onLookDownChange,
 }: SkySceneProps) {
@@ -57,6 +60,7 @@ export function SkyScene({
         onHover={(planet) => onHover(planet ? { kind: "planet", planet } : null)}
       />
       <ShootingStars />
+      <HoverHighlight hover={hover} date={date} latitude={latitude} longitude={longitude} />
     </Canvas>
   );
 }
