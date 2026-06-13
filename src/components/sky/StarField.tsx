@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
 import type { PerspectiveCamera } from "three";
 import type { StarRecord } from "@/types/sky";
@@ -10,10 +10,13 @@ import { equatorialToHorizontal, horizontalToCartesian, localSiderealTimeDeg } f
 import { magnitudeToOpacity, magnitudeToSize, starColor } from "@/lib/starAppearance";
 import { SKY_RADIUS } from "./constants";
 
-// Base hover hit-radius (world units) at the default field of view, scaled
-// with zoom so stars stay just as easy to hover when zoomed out.
+// The raycaster threshold (world units) casts a generous "net" of candidate
+// stars near the cursor, scaled with zoom so the net stays the same size on
+// screen. From that net we then pick whichever star's projected screen
+// position is actually nearest the cursor, within MAX_HOVER_PX pixels.
 const DEFAULT_FOV = 75;
-const BASE_POINT_THRESHOLD = 3;
+const BASE_POINT_THRESHOLD = 6;
+const MAX_HOVER_PX = 24;
 
 const vertexShader = /* glsl */ `
   attribute float size;
@@ -109,6 +112,8 @@ export function StarField({ stars, date, latitude, longitude, onHover }: StarFie
     []
   );
 
+  const { camera, size } = useThree();
+
   useFrame((state) => {
     material.uniforms.uTime.value = state.clock.elapsedTime;
 
@@ -120,15 +125,44 @@ export function StarField({ stars, date, latitude, longitude, onHover }: StarFie
   });
 
   const sizes = geometry.getAttribute("size") as THREE.BufferAttribute;
+  const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
+  const projected = useMemo(() => new THREE.Vector3(), []);
 
   function handlePointerMove(event: ThreeEvent<PointerEvent>) {
     event.stopPropagation();
-    const index = event.index;
-    if (index === undefined || sizes.getX(index) <= 0) {
+
+    const pointerX = event.nativeEvent.offsetX;
+    const pointerY = event.nativeEvent.offsetY;
+
+    let bestIndex = -1;
+    let bestDistSq = (MAX_HOVER_PX * MAX_HOVER_PX);
+
+    for (const intersection of event.intersections) {
+      if (intersection.object !== event.object || intersection.index === undefined) continue;
+      const index = intersection.index;
+      if (sizes.getX(index) <= 0) continue;
+
+      projected.set(positions.getX(index), positions.getY(index), positions.getZ(index));
+      projected.project(camera);
+
+      const screenX = (projected.x * 0.5 + 0.5) * size.width;
+      const screenY = (1 - (projected.y * 0.5 + 0.5)) * size.height;
+
+      const dx = screenX - pointerX;
+      const dy = screenY - pointerY;
+      const distSq = dx * dx + dy * dy;
+
+      if (distSq < bestDistSq) {
+        bestDistSq = distSq;
+        bestIndex = index;
+      }
+    }
+
+    if (bestIndex === -1) {
       onHover?.(null);
       return;
     }
-    onHover?.(stars[index]);
+    onHover?.(stars[bestIndex]);
   }
 
   function handlePointerOut() {
