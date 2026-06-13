@@ -39,7 +39,7 @@ export function LookControls({ onLookDownChange }: LookControlsProps) {
       const dy = event.clientY - last.current.y;
       last.current = { x: event.clientX, y: event.clientY };
       yaw.current -= dx * LOOK_SPEED;
-      pitch.current = Math.min(MAX_PITCH, Math.max(-MAX_PITCH, pitch.current - dy * LOOK_SPEED));
+      pitch.current = Math.min(MAX_PITCH, Math.max(-MAX_PITCH, pitch.current + dy * LOOK_SPEED));
     }
 
     dom.addEventListener("pointerdown", onPointerDown);
