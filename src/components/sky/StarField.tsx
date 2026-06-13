@@ -4,10 +4,16 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
+import type { PerspectiveCamera } from "three";
 import type { StarRecord } from "@/types/sky";
 import { equatorialToHorizontal, horizontalToCartesian, localSiderealTimeDeg } from "@/lib/astronomy";
 import { magnitudeToOpacity, magnitudeToSize, starColor } from "@/lib/starAppearance";
 import { SKY_RADIUS } from "./constants";
+
+// Base hover hit-radius (world units) at the default field of view, scaled
+// with zoom so stars stay just as easy to hover when zoomed out.
+const DEFAULT_FOV = 75;
+const BASE_POINT_THRESHOLD = 3;
 
 const vertexShader = /* glsl */ `
   attribute float size;
@@ -105,6 +111,12 @@ export function StarField({ stars, date, latitude, longitude, onHover }: StarFie
 
   useFrame((state) => {
     material.uniforms.uTime.value = state.clock.elapsedTime;
+
+    const pointsParams = state.raycaster.params.Points;
+    if (pointsParams) {
+      const fov = (state.camera as PerspectiveCamera).fov ?? DEFAULT_FOV;
+      pointsParams.threshold = BASE_POINT_THRESHOLD * (fov / DEFAULT_FOV);
+    }
   });
 
   const sizes = geometry.getAttribute("size") as THREE.BufferAttribute;
