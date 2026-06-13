@@ -44,7 +44,14 @@ export function SkyScene({
       <HorizonRing />
       <CompassLabels />
       {showConstellations && (
-        <ConstellationLines constellations={constellations} date={date} latitude={latitude} longitude={longitude} />
+        <ConstellationLines
+          constellations={constellations}
+          date={date}
+          latitude={latitude}
+          longitude={longitude}
+          hoveredConstellationId={hover?.kind === "constellation" ? hover.constellation.id : null}
+          onHover={onHover}
+        />
       )}
       <StarField
         stars={stars}

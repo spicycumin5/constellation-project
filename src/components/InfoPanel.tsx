@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { constellationFacts } from "@/data/constellationFacts";
 import type { HoverTarget, StarRecord } from "@/types/sky";
 
 function starDisplayName(star: StarRecord): string {
@@ -46,7 +47,7 @@ export function InfoPanel({ target }: InfoPanelProps) {
                 )}
               </dl>
             </>
-          ) : (
+          ) : target.kind === "planet" ? (
             <>
               <h2 className="text-base font-semibold">{target.planet.name}</h2>
               <dl className="mt-2 grid grid-cols-2 gap-1 text-xs text-zinc-300">
@@ -57,6 +58,15 @@ export function InfoPanel({ target }: InfoPanelProps) {
                 <dt className="text-zinc-500">Azimuth</dt>
                 <dd>{target.planet.azimuth.toFixed(1)}°</dd>
               </dl>
+            </>
+          ) : (
+            <>
+              <h2 className="text-base font-semibold">{target.constellation.name}</h2>
+              <p className="text-xs text-zinc-400">Abbreviation: {target.constellation.id}</p>
+              <p className="mt-2 text-xs leading-relaxed text-zinc-300">
+                {constellationFacts[target.constellation.id] ??
+                  "No fun facts on file for this constellation yet."}
+              </p>
             </>
           )}
         </motion.div>

@@ -39,4 +39,5 @@ export interface SkyQuery {
 
 export type HoverTarget =
   | { kind: "star"; star: StarRecord }
-  | { kind: "planet"; planet: PlanetPosition };
+  | { kind: "planet"; planet: PlanetPosition }
+  | { kind: "constellation"; constellation: ConstellationRecord };

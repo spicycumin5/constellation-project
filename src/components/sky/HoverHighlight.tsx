@@ -45,9 +45,13 @@ export function HoverHighlight({ hover, date, latitude, longitude }: HoverHighli
       return horizontalToCartesian(altitude, azimuth, SKY_RADIUS * 0.995);
     }
 
-    const { altitude, azimuth } = hover.planet;
-    if (altitude < 0) return null;
-    return horizontalToCartesian(altitude, azimuth, SKY_RADIUS * 0.995);
+    if (hover.kind === "planet") {
+      const { altitude, azimuth } = hover.planet;
+      if (altitude < 0) return null;
+      return horizontalToCartesian(altitude, azimuth, SKY_RADIUS * 0.995);
+    }
+
+    return null;
   }, [hover, date, latitude, longitude]);
 
   useFrame((state) => {
