@@ -19,15 +19,15 @@ const PLANET_COLORS: Record<string, string> = {
 };
 
 const PLANET_SIZES: Record<string, number> = {
-  Sun: 3.6,
-  Moon: 2.8,
-  Mercury: 0.9,
-  Venus: 1.3,
-  Mars: 1.0,
-  Jupiter: 1.4,
-  Saturn: 1.2,
-  Uranus: 0.8,
-  Neptune: 0.8,
+  Sun: 1.8,
+  Moon: 1.4,
+  Mercury: 0.45,
+  Venus: 0.65,
+  Mars: 0.5,
+  Jupiter: 0.7,
+  Saturn: 0.6,
+  Uranus: 0.4,
+  Neptune: 0.4,
 };
 
 interface PlanetsProps {
@@ -64,7 +64,7 @@ export function Planets({ date, latitude, longitude, onHover }: PlanetsProps) {
             }}
           >
             <sphereGeometry args={[size, 16, 16]} />
-            <meshBasicMaterial color={color} toneMapped={false} />
+            <meshBasicMaterial color={color} transparent opacity={0.7} toneMapped={false} />
           </mesh>
         );
       })}
