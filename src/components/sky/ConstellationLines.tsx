@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import { useFrame } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
 import type { ConstellationRecord, HoverTarget } from "@/types/sky";
 import { equatorialToHorizontal, horizontalToCartesian, localSiderealTimeDeg } from "@/lib/astronomy";
@@ -78,6 +79,15 @@ export function ConstellationLines({
     return { geometry: geo, segmentConstellations };
   }, [constellations, date, latitude, longitude]);
 
+  const highlightMaterialRef = useRef<THREE.LineBasicMaterial>(null);
+
+  useFrame((state) => {
+    const material = highlightMaterialRef.current;
+    if (!material) return;
+    const pulse = 0.5 + 0.5 * Math.sin(state.clock.elapsedTime * 4);
+    material.opacity = 0.5 + 0.5 * pulse;
+  });
+
   const highlightGeometry = useMemo(() => {
     if (!hoveredConstellationId) return null;
     const constellation = constellations.find((c) => c.id === hoveredConstellationId);
@@ -115,7 +125,7 @@ export function ConstellationLines({
       </lineSegments>
       {highlightGeometry && (
         <lineSegments geometry={highlightGeometry}>
-          <lineBasicMaterial color="#9ecbff" transparent opacity={0.9} depthWrite={false} />
+          <lineBasicMaterial ref={highlightMaterialRef} color="#9ecbff" transparent opacity={0.9} depthWrite={false} />
         </lineSegments>
       )}
     </>

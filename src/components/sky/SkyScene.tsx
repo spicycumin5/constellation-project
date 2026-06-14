@@ -9,7 +9,6 @@ import { LookControls } from "./LookControls";
 import { HorizonRing } from "./HorizonRing";
 import { CompassLabels } from "./CompassLabels";
 import { ShootingStars } from "./ShootingStars";
-import { HoverHighlight } from "./HoverHighlight";
 
 interface SkySceneProps {
   stars: StarRecord[];
@@ -58,16 +57,17 @@ export function SkyScene({
         date={date}
         latitude={latitude}
         longitude={longitude}
+        hoveredStarId={hover?.kind === "star" ? hover.star.id : null}
         onHover={(star) => onHover(star ? { kind: "star", star } : null)}
       />
       <Planets
         date={date}
         latitude={latitude}
         longitude={longitude}
+        hoveredPlanetName={hover?.kind === "planet" ? hover.planet.name : null}
         onHover={(planet) => onHover(planet ? { kind: "planet", planet } : null)}
       />
       <ShootingStars />
-      <HoverHighlight hover={hover} date={date} latitude={latitude} longitude={longitude} />
     </Canvas>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
+import * as THREE from "three";
+import { useFrame } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
 import type { PlanetPosition } from "@/types/sky";
 import { getPlanetPositions, horizontalToCartesian, makeObserver } from "@/lib/astronomy";
@@ -34,10 +36,11 @@ interface PlanetsProps {
   date: Date;
   latitude: number;
   longitude: number;
+  hoveredPlanetName?: string | null;
   onHover?: (planet: PlanetPosition | null) => void;
 }
 
-export function Planets({ date, latitude, longitude, onHover }: PlanetsProps) {
+export function Planets({ date, latitude, longitude, hoveredPlanetName, onHover }: PlanetsProps) {
   const planets = useMemo(() => {
     const observer = makeObserver(latitude, longitude, 0);
     return getPlanetPositions(date, observer).filter((p) => p.altitude > 0);
@@ -51,23 +54,64 @@ export function Planets({ date, latitude, longitude, onHover }: PlanetsProps) {
         const color = PLANET_COLORS[planet.name] ?? "#ffffff";
 
         return (
-          <mesh
+          <PlanetMesh
             key={planet.name}
+            planet={planet}
             position={position}
-            onPointerOver={(event: ThreeEvent<PointerEvent>) => {
-              event.stopPropagation();
-              onHover?.(planet);
-            }}
-            onPointerOut={(event: ThreeEvent<PointerEvent>) => {
-              event.stopPropagation();
-              onHover?.(null);
-            }}
-          >
-            <sphereGeometry args={[size, 16, 16]} />
-            <meshBasicMaterial color={color} transparent opacity={0.7} toneMapped={false} />
-          </mesh>
+            size={size}
+            color={color}
+            isHovered={hoveredPlanetName === planet.name}
+            onHover={onHover}
+          />
         );
       })}
     </group>
+  );
+}
+
+interface PlanetMeshProps {
+  planet: PlanetPosition;
+  position: [number, number, number];
+  size: number;
+  color: string;
+  isHovered: boolean;
+  onHover?: (planet: PlanetPosition | null) => void;
+}
+
+function PlanetMesh({ planet, position, size, color, isHovered, onHover }: PlanetMeshProps) {
+  const materialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state) => {
+    const material = materialRef.current;
+    const mesh = meshRef.current;
+    if (!material || !mesh) return;
+
+    if (isHovered) {
+      const pulse = 0.5 + 0.5 * Math.sin(state.clock.elapsedTime * 4);
+      material.opacity = 0.7 + 0.3 * pulse;
+      mesh.scale.setScalar(1 + 0.25 * pulse);
+    } else {
+      material.opacity = 0.7;
+      mesh.scale.setScalar(1);
+    }
+  });
+
+  return (
+    <mesh
+      ref={meshRef}
+      position={position}
+      onPointerOver={(event: ThreeEvent<PointerEvent>) => {
+        event.stopPropagation();
+        onHover?.(planet);
+      }}
+      onPointerOut={(event: ThreeEvent<PointerEvent>) => {
+        event.stopPropagation();
+        onHover?.(null);
+      }}
+    >
+      <sphereGeometry args={[size, 16, 16]} />
+      <meshBasicMaterial ref={materialRef} color={color} transparent opacity={0.7} toneMapped={false} />
+    </mesh>
   );
 }
