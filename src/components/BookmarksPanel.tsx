@@ -151,14 +151,14 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
       initial={{ opacity: 0, x: -24 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4, ease: "easeOut", delay: 0.1 }}
-      className="pointer-events-auto flex w-72 flex-col gap-2 rounded-xl border border-white/10 bg-black/60 p-4 text-sm text-zinc-100 shadow-xl backdrop-blur-md"
+      className="pointer-events-auto flex min-h-0 w-72 flex-1 flex-col gap-2 rounded-xl border border-white/10 bg-black/60 p-4 text-sm text-zinc-100 shadow-xl backdrop-blur-md"
     >
-      <div>
+      <div className="flex-none">
         <h2 className="text-sm font-semibold tracking-wide">Moments</h2>
         <p className="text-xs text-zinc-400">Jump to a meaningful place and time.</p>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="moments-scroll flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
         {moments.map((moment) => (
           <div key={moment.id} className="flex items-stretch gap-1.5">
             <button
