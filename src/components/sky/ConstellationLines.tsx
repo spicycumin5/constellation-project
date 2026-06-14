@@ -2,17 +2,40 @@
 
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
 import type { PerspectiveCamera } from "three";
 import type { ConstellationRecord, HoverTarget } from "@/types/sky";
 import { equatorialToHorizontal, horizontalToCartesian, localSiderealTimeDeg } from "@/lib/astronomy";
 import { SKY_RADIUS } from "./constants";
 
-// Base line hover hit-radius (world units) at the default field of view,
-// scaled with zoom so lines stay just as easy to hover when zoomed out.
+// The raycaster threshold (world units) casts a generous "net" of candidate
+// segments near the cursor, scaled with zoom so the net stays the same size
+// on screen. From that net we then pick whichever segment's projected
+// screen-space line is actually nearest the cursor, within MAX_HOVER_PX.
 const DEFAULT_FOV = 75;
-const BASE_LINE_THRESHOLD = 1.2;
+const BASE_LINE_THRESHOLD = 5;
+const MAX_HOVER_PX = 16;
+
+function pointToSegmentDistanceSq(
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+): number {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const lengthSq = abx * abx + aby * aby;
+  let t = lengthSq > 0 ? ((px - ax) * abx + (py - ay) * aby) / lengthSq : 0;
+  t = Math.max(0, Math.min(1, t));
+  const cx = ax + abx * t;
+  const cy = ay + aby * t;
+  const dx = px - cx;
+  const dy = py - cy;
+  return dx * dx + dy * dy;
+}
 
 interface ConstellationLinesProps {
   constellations: ConstellationRecord[];
@@ -86,6 +109,8 @@ export function ConstellationLines({
   }, [constellations, date, latitude, longitude]);
 
   const highlightMaterialRef = useRef<THREE.LineBasicMaterial>(null);
+  const { camera, size } = useThree();
+  const projected = useMemo(() => new THREE.Vector3(), []);
 
   useFrame((state) => {
     const material = highlightMaterialRef.current;
@@ -115,12 +140,44 @@ export function ConstellationLines({
   }, [hoveredConstellationId, constellations, date, latitude, longitude]);
 
   function handlePointerMove(event: ThreeEvent<PointerEvent>) {
-    const index = event.index;
-    if (index === undefined) return;
+    const pointerX = event.nativeEvent.offsetX;
+    const pointerY = event.nativeEvent.offsetY;
+    const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
 
-    const segment = Math.floor(index / 2);
-    const constellation = segmentConstellations[segment];
-    if (!constellation) return;
+    let bestSegment = -1;
+    let bestDistSq = MAX_HOVER_PX * MAX_HOVER_PX;
+
+    for (const intersection of event.intersections) {
+      if (intersection.object !== event.object || intersection.index === undefined) continue;
+      const i = intersection.index;
+
+      projected.set(positions.getX(i), positions.getY(i), positions.getZ(i));
+      projected.project(camera);
+      const ax = (projected.x * 0.5 + 0.5) * size.width;
+      const ay = (1 - (projected.y * 0.5 + 0.5)) * size.height;
+
+      projected.set(positions.getX(i + 1), positions.getY(i + 1), positions.getZ(i + 1));
+      projected.project(camera);
+      const bx = (projected.x * 0.5 + 0.5) * size.width;
+      const by = (1 - (projected.y * 0.5 + 0.5)) * size.height;
+
+      const distSq = pointToSegmentDistanceSq(pointerX, pointerY, ax, ay, bx, by);
+      if (distSq < bestDistSq) {
+        bestDistSq = distSq;
+        bestSegment = Math.floor(i / 2);
+      }
+    }
+
+    if (bestSegment === -1) {
+      onHover?.(null);
+      return;
+    }
+
+    const constellation = segmentConstellations[bestSegment];
+    if (!constellation) {
+      onHover?.(null);
+      return;
+    }
 
     event.stopPropagation();
     onHover?.({ kind: "constellation", constellation });
