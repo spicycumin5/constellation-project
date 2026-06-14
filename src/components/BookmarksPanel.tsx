@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { bookmarks, type Bookmark } from "@/data/bookmarks";
 
-const STORAGE_KEY = "stellarmark:customMoments";
+const STORAGE_KEY = "stellarmark:moments";
+const LEGACY_CUSTOM_KEY = "stellarmark:customMoments";
 
 function formatMomentSummary(date: Date, latitude: number, longitude: number): string {
   const when = date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -30,8 +31,9 @@ interface BookmarksPanelProps {
 }
 
 export function BookmarksPanel({ date, latitude, longitude, onSelect }: BookmarksPanelProps) {
-  const [customMoments, setCustomMoments] = useState<Bookmark[]>([]);
+  const [moments, setMoments] = useState<Bookmark[]>(bookmarks);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [label, setLabel] = useState("");
   const [momentDateTime, setMomentDateTime] = useState("");
   const [momentLatitude, setMomentLatitude] = useState("");
@@ -39,21 +41,49 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (!stored) return;
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) setCustomMoments(parsed);
-    } catch {
-      // ignore malformed storage
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setMoments(parsed);
+          return;
+        }
+      } catch {
+        // ignore malformed storage, fall through to migration/defaults
+      }
     }
+
+    // Migrate from the older "custom moments on top of built-ins" scheme so
+    // existing saved moments aren't lost.
+    let legacyCustom: Bookmark[] = [];
+    const legacyStored = window.localStorage.getItem(LEGACY_CUSTOM_KEY);
+    if (legacyStored) {
+      try {
+        const parsed = JSON.parse(legacyStored);
+        if (Array.isArray(parsed)) legacyCustom = parsed;
+      } catch {
+        // ignore malformed storage
+      }
+    }
+
+    const seeded = [...bookmarks, ...legacyCustom];
+    setMoments(seeded);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
   }, []);
 
   function persist(next: Bookmark[]) {
-    setCustomMoments(next);
+    setMoments(next);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
-  function openForm() {
+  function resetForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setLabel("");
+  }
+
+  function openAddForm() {
+    setEditingId(null);
     setLabel("");
     setMomentDateTime(toDatetimeLocalValue(date));
     setMomentLatitude(latitude.toFixed(4));
@@ -61,7 +91,16 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
     setShowForm(true);
   }
 
-  function handleAdd() {
+  function openEditForm(moment: Bookmark) {
+    setEditingId(moment.id);
+    setLabel(moment.label);
+    setMomentDateTime(toDatetimeLocalValue(new Date(moment.date)));
+    setMomentLatitude(String(moment.latitude));
+    setMomentLongitude(String(moment.longitude));
+    setShowForm(true);
+  }
+
+  function handleSave() {
     const trimmed = label.trim();
     if (!trimmed || !momentDateTime) return;
 
@@ -76,8 +115,8 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
       return;
     }
 
-    const moment: Bookmark = {
-      id: `custom-${Date.now()}`,
+    const updated: Bookmark = {
+      id: editingId ?? `custom-${Date.now()}`,
       label: trimmed,
       description: formatMomentSummary(parsedDate, parsedLatitude, parsedLongitude),
       date: parsedDate.toISOString(),
@@ -85,13 +124,18 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
       longitude: parsedLongitude,
     };
 
-    persist([...customMoments, moment]);
-    setLabel("");
-    setShowForm(false);
+    if (editingId) {
+      persist(moments.map((moment) => (moment.id === editingId ? updated : moment)));
+    } else {
+      persist([...moments, updated]);
+    }
+
+    resetForm();
   }
 
   function handleRemove(id: string) {
-    persist(customMoments.filter((moment) => moment.id !== id));
+    if (editingId === id) resetForm();
+    persist(moments.filter((moment) => moment.id !== id));
   }
 
   const isValid =
@@ -115,44 +159,50 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
       </div>
 
       <div className="flex flex-col gap-1.5">
-        {[...bookmarks, ...customMoments].map((bookmark) => {
-          const isCustom = bookmark.id.startsWith("custom-");
-          return (
-            <div key={bookmark.id} className="flex items-stretch gap-1.5">
-              <button
-                type="button"
-                onClick={() => onSelect(new Date(bookmark.date), bookmark.latitude, bookmark.longitude)}
-                className="flex-1 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-left transition-colors hover:bg-white/10"
-              >
-                <span className="block text-sm font-medium">{bookmark.label}</span>
-                <span className="block text-xs text-zinc-400">{bookmark.description}</span>
-              </button>
-              {isCustom && (
-                <button
-                  type="button"
-                  onClick={() => handleRemove(bookmark.id)}
-                  aria-label={`Remove ${bookmark.label}`}
-                  className="rounded-md border border-white/10 bg-white/5 px-2 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          );
-        })}
+        {moments.map((moment) => (
+          <div key={moment.id} className="flex items-stretch gap-1.5">
+            <button
+              type="button"
+              onClick={() => onSelect(new Date(moment.date), moment.latitude, moment.longitude)}
+              className="flex-1 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-left transition-colors hover:bg-white/10"
+            >
+              <span className="block text-sm font-medium">{moment.label}</span>
+              <span className="block text-xs text-zinc-400">{moment.description}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openEditForm(moment)}
+              aria-label={`Edit ${moment.label}`}
+              className="rounded-md border border-white/10 bg-white/5 px-2 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100"
+            >
+              ✎
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRemove(moment.id)}
+              aria-label={`Remove ${moment.label}`}
+              className="rounded-md border border-white/10 bg-white/5 px-2 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
       </div>
 
       {showForm ? (
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            handleAdd();
+            handleSave();
           }}
           onKeyDown={(event) => {
-            if (event.key === "Escape") setShowForm(false);
+            if (event.key === "Escape") resetForm();
           }}
           className="flex flex-col gap-2 rounded-md border border-white/10 bg-white/5 p-2"
         >
+          <span className="text-xs font-semibold uppercase tracking-wide text-zinc-300">
+            {editingId ? "Edit moment" : "Add moment"}
+          </span>
           <label className="flex flex-col gap-1">
             <span className="text-xs uppercase tracking-wide text-zinc-400">Detail name</span>
             <input
@@ -209,11 +259,7 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
             >
               Save
             </button>
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-white/10"
-            >
+            <button type="button" onClick={resetForm} className="rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-white/10">
               Cancel
             </button>
           </div>
@@ -221,7 +267,7 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
       ) : (
         <button
           type="button"
-          onClick={openForm}
+          onClick={openAddForm}
           className="rounded-md border border-dashed border-white/15 px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/5"
         >
           + Add moment
