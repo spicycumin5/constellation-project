@@ -36,7 +36,7 @@ export function SkyScene({
   return (
     <Canvas
       camera={{ position: [0, 0, 0], fov: 75, near: 0.1, far: 1000 }}
-      raycaster={{ params: { Mesh: {}, LOD: {}, Sprite: {}, Points: { threshold: 6 }, Line: { threshold: 0.5 } } }}
+      raycaster={{ params: { Mesh: {}, LOD: {}, Sprite: {}, Points: { threshold: 6 }, Line: { threshold: 1.2 } } }}
       style={{ width: "100%", height: "100%", background: "#04060f" }}
     >
       <LookControls onLookDownChange={onLookDownChange} />

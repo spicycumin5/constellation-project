@@ -4,9 +4,15 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import type { ThreeEvent } from "@react-three/fiber";
+import type { PerspectiveCamera } from "three";
 import type { ConstellationRecord, HoverTarget } from "@/types/sky";
 import { equatorialToHorizontal, horizontalToCartesian, localSiderealTimeDeg } from "@/lib/astronomy";
 import { SKY_RADIUS } from "./constants";
+
+// Base line hover hit-radius (world units) at the default field of view,
+// scaled with zoom so lines stay just as easy to hover when zoomed out.
+const DEFAULT_FOV = 75;
+const BASE_LINE_THRESHOLD = 1.2;
 
 interface ConstellationLinesProps {
   constellations: ConstellationRecord[];
@@ -83,9 +89,16 @@ export function ConstellationLines({
 
   useFrame((state) => {
     const material = highlightMaterialRef.current;
-    if (!material) return;
-    const pulse = 0.5 + 0.5 * Math.sin(state.clock.elapsedTime * 4);
-    material.opacity = 0.5 + 0.5 * pulse;
+    if (material) {
+      const pulse = 0.5 + 0.5 * Math.sin(state.clock.elapsedTime * 4);
+      material.opacity = 0.5 + 0.5 * pulse;
+    }
+
+    const lineParams = state.raycaster.params.Line;
+    if (lineParams) {
+      const fov = (state.camera as PerspectiveCamera).fov ?? DEFAULT_FOV;
+      lineParams.threshold = BASE_LINE_THRESHOLD * (fov / DEFAULT_FOV);
+    }
   });
 
   const highlightGeometry = useMemo(() => {

@@ -16,7 +16,7 @@ import { SKY_RADIUS } from "./constants";
 // position is actually nearest the cursor, within MAX_HOVER_PX pixels.
 const DEFAULT_FOV = 75;
 const BASE_POINT_THRESHOLD = 6;
-const MAX_HOVER_PX = 24;
+const MAX_HOVER_PX = 14;
 
 // Stars render slightly closer to the camera than constellation lines
 // (0.997-0.998) so the star hit-test is evaluated first and can take

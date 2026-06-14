@@ -56,7 +56,7 @@ export function starColor(ci: number | null): [number, number, number] {
  */
 export function magnitudeToSize(mag: number): number {
   const clamped = clamp(mag, -1.5, 6.5);
-  return 2.6 - clamped * 0.32;
+  return (2.6 - clamped * 0.32) * 1.6;
 }
 
 /** Maps apparent magnitude to a render opacity (0-1). */
