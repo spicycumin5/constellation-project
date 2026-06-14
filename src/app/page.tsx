@@ -84,6 +84,9 @@ export default function Home() {
             onToggleConstellations={setShowConstellations}
           />
           <BookmarksPanel
+            date={date}
+            latitude={latitude}
+            longitude={longitude}
             onSelect={(bookmarkDate, lat, lon) => {
               setDate(bookmarkDate);
               setLatitude(lat);

@@ -19,8 +19,8 @@ export const bookmarks: Bookmark[] = [
   {
     id: "confession",
     label: "Where Kyumin confessed to his girlfriend",
-    description: "Mulholland Scenic Parkway and Corridor, Los Angeles, CA — 11:05 PM",
-    date: "2024-01-01T07:05:00.000Z",
+    description: "Mulholland Scenic Parkway and Corridor, Los Angeles, CA — May 27, 2026, 11:05 PM",
+    date: "2026-05-28T06:05:00.000Z",
     latitude: 34.1281,
     longitude: -118.3486,
   },
