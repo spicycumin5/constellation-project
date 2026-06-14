@@ -11,6 +11,17 @@ function formatMomentSummary(date: Date, latitude: number, longitude: number): s
   return `${latitude.toFixed(2)}, ${longitude.toFixed(2)} — ${when}`;
 }
 
+/** Formats a Date as a `datetime-local` input value in the browser's local time. */
+function toDatetimeLocalValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 interface BookmarksPanelProps {
   date: Date;
   latitude: number;
@@ -22,6 +33,9 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
   const [customMoments, setCustomMoments] = useState<Bookmark[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState("");
+  const [momentDateTime, setMomentDateTime] = useState("");
+  const [momentLatitude, setMomentLatitude] = useState("");
+  const [momentLongitude, setMomentLongitude] = useState("");
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -39,17 +53,36 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
+  function openForm() {
+    setLabel("");
+    setMomentDateTime(toDatetimeLocalValue(date));
+    setMomentLatitude(latitude.toFixed(4));
+    setMomentLongitude(longitude.toFixed(4));
+    setShowForm(true);
+  }
+
   function handleAdd() {
     const trimmed = label.trim();
-    if (!trimmed) return;
+    if (!trimmed || !momentDateTime) return;
+
+    const parsedDate = new Date(momentDateTime);
+    const parsedLatitude = Number(momentLatitude);
+    const parsedLongitude = Number(momentLongitude);
+    if (
+      Number.isNaN(parsedDate.getTime()) ||
+      Number.isNaN(parsedLatitude) ||
+      Number.isNaN(parsedLongitude)
+    ) {
+      return;
+    }
 
     const moment: Bookmark = {
       id: `custom-${Date.now()}`,
       label: trimmed,
-      description: formatMomentSummary(date, latitude, longitude),
-      date: date.toISOString(),
-      latitude,
-      longitude,
+      description: formatMomentSummary(parsedDate, parsedLatitude, parsedLongitude),
+      date: parsedDate.toISOString(),
+      latitude: parsedLatitude,
+      longitude: parsedLongitude,
     };
 
     persist([...customMoments, moment]);
@@ -60,6 +93,14 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
   function handleRemove(id: string) {
     persist(customMoments.filter((moment) => moment.id !== id));
   }
+
+  const isValid =
+    label.trim().length > 0 &&
+    momentDateTime.length > 0 &&
+    !Number.isNaN(Number(momentLatitude)) &&
+    momentLatitude.trim().length > 0 &&
+    !Number.isNaN(Number(momentLongitude)) &&
+    momentLongitude.trim().length > 0;
 
   return (
     <motion.div
@@ -102,28 +143,68 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
       </div>
 
       {showForm ? (
-        <div className="flex flex-col gap-2 rounded-md border border-white/10 bg-white/5 p-2">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleAdd();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setShowForm(false);
+          }}
+          className="flex flex-col gap-2 rounded-md border border-white/10 bg-white/5 p-2"
+        >
           <label className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-wide text-zinc-400">Label</span>
+            <span className="text-xs uppercase tracking-wide text-zinc-400">Detail name</span>
             <input
               autoFocus
               type="text"
               value={label}
               onChange={(event) => setLabel(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") handleAdd();
-                if (event.key === "Escape") setShowForm(false);
-              }}
               placeholder="e.g. Graduation night"
               className="rounded-md border border-white/10 bg-black/40 px-2 py-1.5 text-zinc-100 outline-none focus:border-sky-400"
             />
           </label>
-          <p className="text-[11px] text-zinc-500">Saves the current date and location.</p>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-zinc-400">Date &amp; time</span>
+            <input
+              type="datetime-local"
+              value={momentDateTime}
+              onChange={(event) => setMomentDateTime(event.target.value)}
+              className="rounded-md border border-white/10 bg-black/40 px-2 py-1.5 text-zinc-100 outline-none focus:border-sky-400"
+            />
+          </label>
+          <div className="flex gap-2">
+            <label className="flex flex-1 flex-col gap-1">
+              <span className="text-xs uppercase tracking-wide text-zinc-400">Latitude</span>
+              <input
+                type="number"
+                step="any"
+                min={-90}
+                max={90}
+                value={momentLatitude}
+                onChange={(event) => setMomentLatitude(event.target.value)}
+                placeholder="e.g. 34.05"
+                className="rounded-md border border-white/10 bg-black/40 px-2 py-1.5 text-zinc-100 outline-none focus:border-sky-400"
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1">
+              <span className="text-xs uppercase tracking-wide text-zinc-400">Longitude</span>
+              <input
+                type="number"
+                step="any"
+                min={-180}
+                max={180}
+                value={momentLongitude}
+                onChange={(event) => setMomentLongitude(event.target.value)}
+                placeholder="e.g. -118.24"
+                className="rounded-md border border-white/10 bg-black/40 px-2 py-1.5 text-zinc-100 outline-none focus:border-sky-400"
+              />
+            </label>
+          </div>
           <div className="flex gap-2">
             <button
-              type="button"
-              onClick={handleAdd}
-              disabled={!label.trim()}
+              type="submit"
+              disabled={!isValid}
               className="flex-1 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-medium text-zinc-100 transition-colors hover:bg-white/20 disabled:opacity-40"
             >
               Save
@@ -136,14 +217,14 @@ export function BookmarksPanel({ date, latitude, longitude, onSelect }: Bookmark
               Cancel
             </button>
           </div>
-        </div>
+        </form>
       ) : (
         <button
           type="button"
-          onClick={() => setShowForm(true)}
+          onClick={openForm}
           className="rounded-md border border-dashed border-white/15 px-3 py-1.5 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/5"
         >
-          + Add current moment
+          + Add moment
         </button>
       )}
     </motion.div>

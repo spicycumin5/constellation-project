@@ -30,6 +30,7 @@ const vertexShader = /* glsl */ `
   attribute float aIndex;
   uniform float uTime;
   uniform float uHoveredIndex;
+  uniform float uFovScale;
   varying vec3 vColor;
   varying float vTwinkle;
   varying float vHovered;
@@ -42,13 +43,14 @@ const vertexShader = /* glsl */ `
     vHovered = hovered;
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     float sizeBoost = 1.0 + hovered * (1.2 + 0.8 * pulse);
-    gl_PointSize = size * (0.85 + 0.15 * flicker) * sizeBoost;
+    gl_PointSize = size * (0.85 + 0.15 * flicker) * sizeBoost * uFovScale;
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
 
 const fragmentShader = /* glsl */ `
   uniform float uTime;
+  uniform float uFovScale;
   varying vec3 vColor;
   varying float vTwinkle;
   varying float vHovered;
@@ -58,8 +60,9 @@ const fragmentShader = /* glsl */ `
     if (dist > 0.5) discard;
     float alpha = smoothstep(0.5, 0.0, dist);
     float pulse = 0.5 + 0.5 * sin(uTime * 6.0);
+    float zoomBoost = 1.0 + 0.3 * clamp(uFovScale - 1.0, 0.0, 1.0);
     vec3 glow = mix(vColor, vec3(1.0), 0.6 * vHovered);
-    vec3 finalColor = glow * vTwinkle * (1.0 + vHovered * (0.8 + 0.8 * pulse));
+    vec3 finalColor = glow * vTwinkle * zoomBoost * (1.0 + vHovered * (0.8 + 0.8 * pulse));
     gl_FragColor = vec4(finalColor, alpha);
   }
 `;
@@ -125,7 +128,7 @@ export function StarField({ stars, date, latitude, longitude, hoveredStarId, onH
       new THREE.ShaderMaterial({
         vertexShader,
         fragmentShader,
-        uniforms: { uTime: { value: 0 }, uHoveredIndex: { value: -1 } },
+        uniforms: { uTime: { value: 0 }, uHoveredIndex: { value: -1 }, uFovScale: { value: 1 } },
         transparent: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
@@ -147,9 +150,14 @@ export function StarField({ stars, date, latitude, longitude, hoveredStarId, onH
   useFrame((state) => {
     material.uniforms.uTime.value = state.clock.elapsedTime;
 
+    const fov = (state.camera as PerspectiveCamera).fov ?? DEFAULT_FOV;
+
+    // Zooming in (lower FOV) makes stars appear larger and brighter, since
+    // a fixed pixel size becomes relatively tiny in a narrower view.
+    material.uniforms.uFovScale.value = Math.max(1, DEFAULT_FOV / fov);
+
     const pointsParams = state.raycaster.params.Points;
     if (pointsParams) {
-      const fov = (state.camera as PerspectiveCamera).fov ?? DEFAULT_FOV;
       pointsParams.threshold = BASE_POINT_THRESHOLD * (fov / DEFAULT_FOV);
     }
   });
