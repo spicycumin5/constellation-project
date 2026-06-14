@@ -13,10 +13,17 @@ import { SKY_RADIUS } from "./constants";
 // The raycaster threshold (world units) casts a generous "net" of candidate
 // stars near the cursor, scaled with zoom so the net stays the same size on
 // screen. From that net we then pick whichever star's projected screen
-// position is actually nearest the cursor, within MAX_HOVER_PX pixels.
+// position is actually nearest the cursor, within a per-star hover radius.
+//
+// That radius scales with how big the star actually renders (HOVER_PX_MIN
+// .. MAX_HOVER_PX), so small/dim stars only grab the cursor when it's nearly
+// on top of them, leaving room for constellation lines passing nearby to be
+// hovered instead. Bright stars keep a generous radius for easy hovering.
 const DEFAULT_FOV = 75;
 const BASE_POINT_THRESHOLD = 6;
 const MAX_HOVER_PX = 14;
+const HOVER_PX_MIN = 4;
+const HOVER_PX_SIZE_FACTOR = 1.6;
 
 // Stars render slightly closer to the camera than constellation lines
 // (0.997-0.998) so the star hit-test is evaluated first and can take
@@ -169,14 +176,16 @@ export function StarField({ stars, date, latitude, longitude, hoveredStarId, onH
   function handlePointerMove(event: ThreeEvent<PointerEvent>) {
     const pointerX = event.nativeEvent.offsetX;
     const pointerY = event.nativeEvent.offsetY;
+    const fovScale = material.uniforms.uFovScale.value as number;
 
     let bestIndex = -1;
-    let bestDistSq = (MAX_HOVER_PX * MAX_HOVER_PX);
+    let bestDistSq = Infinity;
 
     for (const intersection of event.intersections) {
       if (intersection.object !== event.object || intersection.index === undefined) continue;
       const index = intersection.index;
-      if (sizes.getX(index) <= 0) continue;
+      const starSize = sizes.getX(index);
+      if (starSize <= 0) continue;
 
       projected.set(positions.getX(index), positions.getY(index), positions.getZ(index));
       projected.project(camera);
@@ -188,7 +197,8 @@ export function StarField({ stars, date, latitude, longitude, hoveredStarId, onH
       const dy = screenY - pointerY;
       const distSq = dx * dx + dy * dy;
 
-      if (distSq < bestDistSq) {
+      const hoverRadius = Math.min(MAX_HOVER_PX, HOVER_PX_MIN + starSize * fovScale * HOVER_PX_SIZE_FACTOR);
+      if (distSq < hoverRadius * hoverRadius && distSq < bestDistSq) {
         bestDistSq = distSq;
         bestIndex = index;
       }
