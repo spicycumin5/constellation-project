@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ControlsPanel } from "@/components/ControlsPanel";
+import { BookmarksPanel } from "@/components/BookmarksPanel";
 import { InfoPanel } from "@/components/InfoPanel";
 import { useSkyData } from "@/hooks/useSkyData";
 import type { HoverTarget } from "@/types/sky";
@@ -69,18 +70,27 @@ export default function Home() {
       </AnimatePresence>
 
       <div className="pointer-events-none absolute inset-0 flex items-start justify-between gap-4 p-4">
-        <ControlsPanel
-          date={date}
-          latitude={latitude}
-          longitude={longitude}
-          showConstellations={showConstellations}
-          onDateChange={setDate}
-          onLocationChange={(lat, lon) => {
-            setLatitude(lat);
-            setLongitude(lon);
-          }}
-          onToggleConstellations={setShowConstellations}
-        />
+        <div className="flex flex-col gap-4">
+          <ControlsPanel
+            date={date}
+            latitude={latitude}
+            longitude={longitude}
+            showConstellations={showConstellations}
+            onDateChange={setDate}
+            onLocationChange={(lat, lon) => {
+              setLatitude(lat);
+              setLongitude(lon);
+            }}
+            onToggleConstellations={setShowConstellations}
+          />
+          <BookmarksPanel
+            onSelect={(bookmarkDate, lat, lon) => {
+              setDate(bookmarkDate);
+              setLatitude(lat);
+              setLongitude(lon);
+            }}
+          />
+        </div>
         <InfoPanel target={hover} />
       </div>
     </main>
